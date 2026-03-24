@@ -184,11 +184,13 @@ try {
 
 | Platform           | Config (YANG) |        Voice Config         | Voice Oper (live calls) |
 | ------------------ | :-----------: | :-------------------------: | :---------------------: |
-| ISR4k (physical)   |       ✓       |              ✓              |            ✓            |
+| ISR4k (physical)   |       ✓       |           partial           |            ✓            |
 | Cat8kv (virtual)   |       ✓       | ✓ (17.12+ with DNA license) |            ✗            |
 | CSR1000v (virtual) |       ✓       |           partial           |            ✗            |
 
-> **Note:** The `Cisco-IOS-XE-voice-oper` YANG model (active call monitoring, call history, DSP stats) is only available on physical ISR4k platforms. Virtual platforms expose the config models but not operational voice data.
+> **Note:** The `Cisco-IOS-XE-voice-oper` YANG model (active call monitoring, call history, DSP stats, SCCP CCM groups, DSP farm profiles) is only available on physical ISR4k platforms. Virtual platforms expose the config models but not operational voice data.
+>
+> **Voice Config coverage:** Controllers, voice-ports, and ccm-manager are available via YANG. Some voice features (voice-service voip, MGCP config) are not yet fully modeled in YANG even on IOS-XE 17.12. The `uck9` license is required for voice YANG models on ISR platforms — on 17.x this requires Smart Licensing.
 
 ## Giving Back
 
