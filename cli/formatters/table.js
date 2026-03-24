@@ -37,11 +37,37 @@ function flattenObj(obj, prefix = "", result = {}) {
  * Strip a common YANG module prefix from column names for readability.
  * "Cisco-IOS-XE-ethernet:negotiation.auto" → "negotiation.auto"
  */
-function shortenKey(key) {
-  return key.replace(/^[A-Za-z0-9-]+:[A-Za-z0-9-]+\.?/, (match) => {
-    const parts = match.split(":");
-    if (parts.length === 2) return parts[1];
-    return match;
+function stripYangPrefix(key) {
+  // Strip YANG module prefixes anywhere in the key
+  // "Cisco-IOS-XE-multicast:sparse-mode" → "sparse-mode"
+  // "ip.Cisco-IOS-XE-ospf:router-ospf.process-id" → "ip.process-id"
+  return key.replace(/[A-Za-z0-9-]+:/g, "");
+}
+
+/**
+ * Shorten dot-notation keys to friendlier column headers.
+ * Prefers the leaf (last segment) but falls back to more segments on collision.
+ * "clock.source.line.line-mode" → "line-mode"
+ * "pri-group.timeslots" → "timeslots"
+ */
+function shortenKeys(fullKeys) {
+  const stripped = fullKeys.map(stripYangPrefix);
+  const shortNames = stripped.map((k) => {
+    const parts = k.split(".");
+    return parts[parts.length - 1];
+  });
+
+  // Resolve collisions by progressively prepending parent segments
+  const counts = {};
+  for (const s of shortNames) counts[s] = (counts[s] || 0) + 1;
+
+  return stripped.map((k, i) => {
+    if (counts[shortNames[i]] <= 1) return shortNames[i];
+    // collision — use last two segments
+    const parts = k.split(".");
+    return parts.length >= 2
+      ? parts.slice(-2).join(".")
+      : parts[parts.length - 1];
   });
 }
 
@@ -72,7 +98,7 @@ function formatArrayTable(rows) {
     for (const k of Object.keys(flat)) keySet.add(k);
   }
   const keys = [...keySet];
-  const shortKeys = keys.map(shortenKey);
+  const shortKeys = shortenKeys(keys);
 
   const table = new Table({ head: shortKeys, wordWrap: true });
 
@@ -89,6 +115,11 @@ function formatArrayTable(rows) {
 }
 
 function formatTable(data) {
+  // Plain primitive (string, number, boolean) — just display it
+  if (data !== null && data !== undefined && typeof data !== "object") {
+    return String(data);
+  }
+
   if (Array.isArray(data) && data.length === 0) {
     return "No results found";
   }
@@ -117,7 +148,7 @@ function formatTable(data) {
   const flat = flattenObj(data);
   const table = new Table({ wordWrap: true });
   for (const [key, val] of Object.entries(flat)) {
-    table.push({ [shortenKey(key)]: val });
+    table.push({ [stripYangPrefix(key).split(".").pop()]: val });
   }
   return table.toString();
 }
