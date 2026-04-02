@@ -1,44 +1,7 @@
 "use strict";
-var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    var desc = Object.getOwnPropertyDescriptor(m, k);
-    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
-      desc = { enumerable: true, get: function() { return m[k]; } };
-    }
-    Object.defineProperty(o, k2, desc);
-}) : (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    o[k2] = m[k];
-}));
-var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
-    Object.defineProperty(o, "default", { enumerable: true, value: v });
-}) : function(o, v) {
-    o["default"] = v;
-});
-var __importStar = (this && this.__importStar) || (function () {
-    var ownKeys = function(o) {
-        ownKeys = Object.getOwnPropertyNames || function (o) {
-            var ar = [];
-            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
-            return ar;
-        };
-        return ownKeys(o);
-    };
-    return function (mod) {
-        if (mod && mod.__esModule) return mod;
-        var result = {};
-        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
-        __setModuleDefault(result, mod);
-        return result;
-    };
-})();
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
+// ─── Interfaces ──────────────────────────────────────────────────────────────
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.YangRequestError = exports.YangConnectionError = exports.YangNotFoundError = exports.YangAuthError = exports.YangError = exports.YangService = void 0;
-const axios_1 = __importDefault(require("axios"));
-const https = __importStar(require("https"));
 // ─── Error Classes ───────────────────────────────────────────────────────────
 class YangError extends Error {
     constructor(message) {
@@ -118,20 +81,14 @@ class YangService {
         var _a;
         this.host = host;
         this.debug = ((_a = opts.logging) === null || _a === void 0 ? void 0 : _a.level) === "debug";
-        const baseURL = opts.baseUrl || `https://${host}`;
-        const httpsAgent = new https.Agent({
-            rejectUnauthorized: !opts.insecure,
-        });
-        this.client = axios_1.default.create({
-            baseURL,
-            auth: { username, password },
-            headers: {
-                Accept: "application/yang-data+json",
-                "Content-Type": "application/yang-data+json",
-            },
-            httpsAgent,
-            timeout: opts.timeout || 30000,
-        });
+        this.baseURL = opts.baseUrl || `https://${host}`;
+        this.timeout = opts.timeout || 30000;
+        this.insecure = !!opts.insecure;
+        this.authHeader =
+            "Basic " + Buffer.from(`${username}:${password}`).toString("base64");
+        if (this.insecure) {
+            process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0";
+        }
     }
     log(message, data) {
         if (!this.debug)
@@ -143,15 +100,53 @@ class YangService {
             console.log(`[YANG DEBUG] ${message}`);
         }
     }
-    handleError(err) {
-        var _a, _b, _c, _d, _e;
-        if (err.response) {
-            const status = err.response.status;
-            const body = err.response.data;
-            const restconfError = ((_b = (_a = body === null || body === void 0 ? void 0 : body.errors) === null || _a === void 0 ? void 0 : _a.error) === null || _b === void 0 ? void 0 : _b[0]) || ((_d = (_c = body === null || body === void 0 ? void 0 : body["ietf-restconf:errors"]) === null || _c === void 0 ? void 0 : _c.error) === null || _d === void 0 ? void 0 : _d[0]);
+    async _fetch(method, path, body) {
+        var _a, _b, _c, _d, _e, _f;
+        const url = `${this.baseURL}${path}`;
+        this.log(`${method} ${path}`);
+        const opts = {
+            method,
+            headers: {
+                Authorization: this.authHeader,
+                Accept: "application/yang-data+json",
+                "Content-Type": "application/yang-data+json",
+            },
+            signal: AbortSignal.timeout(this.timeout),
+        };
+        if (body !== undefined) {
+            opts.body = JSON.stringify(body);
+        }
+        let response;
+        try {
+            response = await fetch(url, opts);
+        }
+        catch (err) {
+            const code = ((_a = err.cause) === null || _a === void 0 ? void 0 : _a.code) || "";
+            if (code === "ECONNREFUSED" ||
+                code === "ENOTFOUND" ||
+                code === "ETIMEDOUT" ||
+                err.name === "TimeoutError") {
+                throw new YangConnectionError(`Connection failed to ${this.host}: ${err.message}`);
+            }
+            if (((_b = err.message) === null || _b === void 0 ? void 0 : _b.includes("certificate")) ||
+                code === "UNABLE_TO_VERIFY_LEAF_SIGNATURE") {
+                throw new YangConnectionError(`TLS certificate error for ${this.host}: ${err.message}. Try --insecure.`);
+            }
+            throw new YangError(err.message);
+        }
+        if (!response.ok) {
+            const status = response.status;
+            let body;
+            try {
+                body = await response.json();
+            }
+            catch (_g) {
+                body = await response.text().catch(() => "");
+            }
+            const restconfError = ((_d = (_c = body === null || body === void 0 ? void 0 : body.errors) === null || _c === void 0 ? void 0 : _c.error) === null || _d === void 0 ? void 0 : _d[0]) || ((_f = (_e = body === null || body === void 0 ? void 0 : body["ietf-restconf:errors"]) === null || _e === void 0 ? void 0 : _e.error) === null || _f === void 0 ? void 0 : _f[0]);
             const errorMsg = (restconfError === null || restconfError === void 0 ? void 0 : restconfError["error-message"]) ||
                 (restconfError === null || restconfError === void 0 ? void 0 : restconfError["error-tag"]) ||
-                err.message;
+                response.statusText;
             if (status === 401 || status === 403) {
                 throw new YangAuthError(`Authentication failed (${status}): ${errorMsg}`);
             }
@@ -160,22 +155,24 @@ class YangService {
             }
             throw new YangRequestError(`RESTCONF error (${status}): ${errorMsg}`, status, restconfError);
         }
-        if (err.code === "ECONNREFUSED" ||
-            err.code === "ENOTFOUND" ||
-            err.code === "ETIMEDOUT") {
-            throw new YangConnectionError(`Connection failed to ${this.host}: ${err.message}`);
+        const text = await response.text();
+        if (!text)
+            return null;
+        try {
+            return JSON.parse(text);
         }
-        if (((_e = err.message) === null || _e === void 0 ? void 0 : _e.includes("certificate")) ||
-            err.code === "UNABLE_TO_VERIFY_LEAF_SIGNATURE") {
-            throw new YangConnectionError(`TLS certificate error for ${this.host}: ${err.message}. Try --insecure.`);
+        catch (_h) {
+            return text;
         }
+    }
+    handleError(err) {
+        if (err instanceof YangError)
+            throw err;
         throw new YangError(err.message);
     }
     async testConnection() {
         try {
-            this.log("Testing connection", { host: this.host });
-            const res = await this.client.get("/restconf");
-            return res.data;
+            return await this._fetch("GET", "/restconf");
         }
         catch (err) {
             this.handleError(err);
@@ -183,9 +180,7 @@ class YangService {
     }
     async get(path, opts = {}) {
         try {
-            this.log("GET", { path });
-            const res = await this.client.get(`/restconf/data/${path}`);
-            let data = unwrapEnvelope(res.data);
+            let data = unwrapEnvelope(await this._fetch("GET", `/restconf/data/${path}`));
             if (opts.clean)
                 data = cleanObj(data);
             return data;
@@ -196,11 +191,8 @@ class YangService {
     }
     async set(path, data, method = "patch") {
         try {
-            this.log(`${method.toUpperCase()}`, { path, data });
-            const res = method === "put"
-                ? await this.client.put(`/restconf/data/${path}`, data)
-                : await this.client.patch(`/restconf/data/${path}`, data);
-            return res.data || { status: "success" };
+            const res = await this._fetch(method.toUpperCase(), `/restconf/data/${path}`, data);
+            return res || { status: "success" };
         }
         catch (err) {
             this.handleError(err);
@@ -208,9 +200,8 @@ class YangService {
     }
     async delete(path) {
         try {
-            this.log("DELETE", { path });
-            const res = await this.client.delete(`/restconf/data/${path}`);
-            return res.data || { status: "deleted" };
+            const res = await this._fetch("DELETE", `/restconf/data/${path}`);
+            return res || { status: "deleted" };
         }
         catch (err) {
             this.handleError(err);
@@ -218,21 +209,18 @@ class YangService {
     }
     async rpc(operation, input) {
         try {
-            this.log("RPC", { operation, input });
             const body = input ? { input } : {};
-            const res = await this.client.post(`/restconf/operations/${operation}`, body);
-            return unwrapEnvelope(res.data) || { status: "success" };
+            const res = await this._fetch("POST", `/restconf/operations/${operation}`, body);
+            return unwrapEnvelope(res) || { status: "success" };
         }
         catch (err) {
             this.handleError(err);
         }
     }
     async getOperations() {
-        var _a;
         try {
-            this.log("GET operations");
-            const res = await this.client.get("/restconf/operations");
-            const ops = ((_a = res.data) === null || _a === void 0 ? void 0 : _a["ietf-restconf:operations"]) || {};
+            const res = await this._fetch("GET", "/restconf/operations");
+            const ops = (res === null || res === void 0 ? void 0 : res["ietf-restconf:operations"]) || {};
             return ops;
         }
         catch (err) {
@@ -242,9 +230,7 @@ class YangService {
     async getModels(filter) {
         var _a;
         try {
-            this.log("GET models", { filter });
-            const res = await this.client.get("/restconf/data/ietf-yang-library:modules-state");
-            const data = res.data;
+            const data = await this._fetch("GET", "/restconf/data/ietf-yang-library:modules-state");
             const modules = ((_a = data === null || data === void 0 ? void 0 : data["ietf-yang-library:modules-state"]) === null || _a === void 0 ? void 0 : _a.module) || [];
             let models = modules.map((m) => ({
                 name: m.name,
@@ -264,17 +250,13 @@ class YangService {
         }
     }
     async describeModel(moduleName) {
-        var _a;
         try {
-            this.log("DESCRIBE", { moduleName });
-            const res = await this.client.get(`/restconf/data/${moduleName}:`);
-            return unwrapEnvelope(res.data);
+            return unwrapEnvelope(await this._fetch("GET", `/restconf/data/${moduleName}:`));
         }
         catch (err) {
-            if (((_a = err.response) === null || _a === void 0 ? void 0 : _a.status) === 404) {
+            if (err instanceof YangNotFoundError) {
                 try {
-                    const res = await this.client.get(`/restconf/data/${moduleName}`);
-                    return unwrapEnvelope(res.data);
+                    return unwrapEnvelope(await this._fetch("GET", `/restconf/data/${moduleName}`));
                 }
                 catch (innerErr) {
                     this.handleError(innerErr);

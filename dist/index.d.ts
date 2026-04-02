@@ -33,11 +33,15 @@ declare class YangRequestError extends YangError {
     constructor(message: string, statusCode: number, restconfError?: object);
 }
 declare class YangService {
-    private client;
+    private baseURL;
+    private authHeader;
     private host;
     private debug;
+    private timeout;
+    private insecure;
     constructor(host: string, username: string, password: string, opts?: YangServiceOptions);
     private log;
+    private _fetch;
     private handleError;
     testConnection(): Promise<any>;
     get(path: string, opts?: {
