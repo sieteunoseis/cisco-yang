@@ -34,6 +34,39 @@ function flattenObj(obj, prefix = "", result = {}) {
 }
 
 /**
+ * Separate an object into scalar values and nested arrays of objects.
+ * Recurses into sub-objects to collect scalars and hoist arrays.
+ * Returns { scalars: { flat.key: val }, arrays: [{ name, rows }] }
+ */
+function separateScalarsAndArrays(obj, prefix = "") {
+  const scalars = {};
+  const arrays = [];
+
+  for (const [key, val] of Object.entries(obj)) {
+    const fullKey = prefix ? `${prefix}.${key}` : key;
+    if (val === null || val === undefined) {
+      scalars[fullKey] = "";
+    } else if (Array.isArray(val)) {
+      if (val.length === 0) {
+        scalars[fullKey] = "";
+      } else if (typeof val[0] !== "object" || val[0] === null) {
+        scalars[fullKey] = val.join(", ");
+      } else {
+        arrays.push({ name: key, rows: val });
+      }
+    } else if (typeof val === "object") {
+      const nested = separateScalarsAndArrays(val, fullKey);
+      Object.assign(scalars, nested.scalars);
+      arrays.push(...nested.arrays);
+    } else {
+      scalars[fullKey] = String(val);
+    }
+  }
+
+  return { scalars, arrays };
+}
+
+/**
  * Strip a common YANG module prefix from column names for readability.
  * "Cisco-IOS-XE-ethernet:negotiation.auto" → "negotiation.auto"
  */
@@ -144,13 +177,27 @@ function formatTable(data) {
     return formatArrayTable(unwrapped);
   }
 
-  // Plain object → flatten and show vertical key-value table
-  const flat = flattenObj(data);
-  const table = new Table({ wordWrap: true });
-  for (const [key, val] of Object.entries(flat)) {
-    table.push({ [stripYangPrefix(key).split(".").pop()]: val });
+  // Plain object → separate scalars from nested arrays
+  const { scalars, arrays } = separateScalarsAndArrays(data);
+  const parts = [];
+
+  // Render scalar key-value table if there are any
+  if (Object.keys(scalars).length > 0) {
+    const table = new Table({ wordWrap: true });
+    for (const [key, val] of Object.entries(scalars)) {
+      table.push({ [stripYangPrefix(key).split(".").pop()]: val });
+    }
+    parts.push(table.toString());
   }
-  return table.toString();
+
+  // Render each nested array as its own labeled table
+  for (const { name, rows } of arrays) {
+    const label = stripYangPrefix(name);
+    parts.push(`\n${label} (${rows.length})`);
+    parts.push(formatArrayTable(rows));
+  }
+
+  return parts.join("\n");
 }
 
 module.exports = { formatTable };
