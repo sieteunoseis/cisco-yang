@@ -40,6 +40,12 @@ function printError(err) {
     process.stderr.write(
       `Hint: Try adding --insecure to skip TLS verification.\n`,
     );
+  } else if (message.includes("(405)")) {
+    process.stderr.write(
+      `Hint: This path is likely an RPC/action, not a GET-able data resource. ` +
+        `Run "cisco-yang operations --filter <name>" to check, then invoke it ` +
+        `with "cisco-yang rpc <operation> [--input '<json>']".\n`,
+    );
   }
   process.exitCode = 1;
 }

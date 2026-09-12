@@ -34,6 +34,13 @@ module.exports = function registerOperationsCommand(program) {
 
         const format = globalOpts.format;
         await printResult(rows, format);
+
+        if (format !== "json" && format !== "csv") {
+          process.stderr.write(
+            `\nThese are RPCs/actions, not GET-able data paths — invoke with:\n` +
+              `  cisco-yang rpc <operation> [--input '<json>']\n`,
+          );
+        }
       } catch (err) {
         status = "error";
         errorMsg = err.message;
