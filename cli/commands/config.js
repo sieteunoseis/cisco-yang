@@ -105,8 +105,16 @@ module.exports = function registerConfigCommand(program) {
 
         const limit = opts.all ? undefined : parseInt(opts.limit, 10) || 10;
         const truncated = limit !== undefined && matched > limit;
+        let activeAppended = false;
         if (limit !== undefined) {
-          entries = entries.slice(0, limit);
+          const page = entries.slice(0, limit);
+          const activeEntry =
+            activeDevice && entries.find(([name]) => name === activeDevice);
+          if (activeEntry && !page.includes(activeEntry)) {
+            page.push(activeEntry);
+            activeAppended = true;
+          }
+          entries = page;
         }
 
         const rows = entries.map(([name, device]) => ({
@@ -125,6 +133,11 @@ module.exports = function registerConfigCommand(program) {
               (opts.filter ? "" : ` (${total} total)`) +
               `. Use --all to show everyone, --limit <n> to change, or --filter <term> to narrow down.\n`,
           );
+          if (activeAppended) {
+            process.stderr.write(
+              `(active device "${activeDevice}" appended below the limit so it's always visible)\n`,
+            );
+          }
         }
       } catch (err) {
         printError(err);
