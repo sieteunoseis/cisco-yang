@@ -6,7 +6,9 @@ const { printResult, printError } = require("../utils/output.js");
 module.exports = function registerDescribeCommand(program) {
   program
     .command("describe <model>")
-    .description("Show the structure of a YANG model by querying the device")
+    .description(
+      "GET a YANG module's data root (not its abstract schema — same as 'get' for a full path; fails on RPC-only modules)",
+    )
     .action(async (model, cmdOpts) => {
       const startTime = Date.now();
       const globalOpts = program.opts();
