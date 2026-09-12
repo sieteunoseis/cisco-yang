@@ -34,7 +34,8 @@ program
   .option("--insecure", "skip TLS certificate verification")
   .option("--no-audit", "disable audit logging for this command")
   .option("--read-only", "restrict to read-only operations")
-  .option("--debug", "enable debug logging");
+  .option("--debug", "enable debug logging")
+  .option("--quiet", "suppress informational messages (device banner, hints) on stderr");
 
 // Register commands
 require("./commands/config.js")(program);
@@ -48,5 +49,6 @@ require("./commands/describe.js")(program);
 require("./commands/which.js")(program);
 require("./commands/voice.js")(program);
 require("./commands/doctor.js")(program);
+require("./commands/audit.js")(program);
 
 program.parse();

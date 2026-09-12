@@ -29,6 +29,8 @@ assert(help.includes("describe"), "should list describe command");
 assert(help.includes("voice"), "should list voice command");
 assert(help.includes("doctor"), "should list doctor command");
 assert(help.includes("config"), "should list config command");
+assert(help.includes("which"), "should list which command");
+assert(help.includes("audit"), "should list audit command");
 console.log("  PASS");
 
 console.log("Test: --version shows version");

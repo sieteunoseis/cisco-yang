@@ -65,8 +65,21 @@ async function resolveConfig(flags = {}) {
   return result;
 }
 
+function deviceLabel(flags = {}) {
+  const usesAdHocHost = !!(flags.host || process.env.CISCO_YANG_HOST);
+  if (usesAdHocHost) return "ad hoc (via --host/env)";
+  const device = getActiveDevice(flags.device);
+  return device ? device.name : "ad hoc (via --host/env)";
+}
+
 async function createService(flags = {}) {
   const config = await resolveConfig(flags);
+
+  if (!flags.quiet) {
+    process.stderr.write(
+      `Device: ${deviceLabel(flags)} (${config.host})\n`,
+    );
+  }
 
   if (config.insecure || flags.insecure) {
     process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0";
@@ -94,4 +107,5 @@ async function createService(flags = {}) {
 module.exports = {
   resolveConfig,
   createService,
+  deviceLabel,
 };

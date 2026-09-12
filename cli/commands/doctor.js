@@ -1,11 +1,7 @@
 "use strict";
 
-const {
-  loadConfig,
-  getConfigPath,
-  getConfigDir,
-} = require("../utils/config.js");
-const { resolveConfig } = require("../utils/connection.js");
+const { getConfigPath, getConfigDir } = require("../utils/config.js");
+const { resolveConfig, deviceLabel } = require("../utils/connection.js");
 
 module.exports = function registerDoctorCommand(program) {
   program
@@ -36,24 +32,16 @@ module.exports = function registerDoctorCommand(program) {
       console.log("\n  Configuration");
       let conn;
       try {
-        const data = loadConfig();
-        if (!data.activeDevice) {
-          fail("No active device configured");
-          console.log(
-            "    Run: cisco-yang config add <name> --host <host> --username <user> --password <pass>",
-          );
-          printSummary(passed, warned, failed);
-          return;
-        }
-        ok(`Active device: ${data.activeDevice}`);
-        const device = data.devices[data.activeDevice];
-        ok(`Host: ${device.host}`);
-        ok(`Username: ${device.username}`);
-
-        if (device.insecure) warn("TLS verification: disabled (--insecure)");
-        else ok("TLS verification: enabled");
-
+        // Resolve exactly the way the actual connection will (respecting
+        // --device / --host / env vars), so this can never show a
+        // different device than the one doctor is about to test.
         conn = await resolveConfig(globalOpts);
+        ok(`Active device: ${deviceLabel(globalOpts)}`);
+        ok(`Host: ${conn.host}`);
+        ok(`Username: ${conn.username}`);
+
+        if (conn.insecure) warn("TLS verification: disabled (--insecure)");
+        else ok("TLS verification: enabled");
       } catch (err) {
         fail(`Config error: ${err.message}`);
         printSummary(passed, warned, failed);

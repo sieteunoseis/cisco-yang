@@ -4,12 +4,16 @@ const { createService } = require("../utils/connection.js");
 const { printResult, printError } = require("../utils/output.js");
 const { enforceReadOnly } = require("../utils/readonly.js");
 
-// RPCs that are read-only and don't need write confirmation
+// RPCs that are read-only and don't need write confirmation.
+// Curated deliberately (not a heuristic) — only add an RPC here once
+// you've confirmed it has no side effects on the device.
 const READ_ONLY_RPCS = new Set([
   "Cisco-IOS-XE-rpc:test",
   "Cisco-IOS-XE-rpc:monitor",
   "cisco-ia:is-syncing",
   "cisco-ia:checkpoint",
+  "cisco-ia:current-time",
+  "cisco-ia:netconf-session-id",
 ]);
 
 module.exports = function registerRpcCommand(program) {

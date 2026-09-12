@@ -108,6 +108,7 @@ Config stored at `~/.cisco-yang/config.json`. Supports [ss-cli](https://github.c
 | `voice <shortcut>` | Voice troubleshooting shortcuts                        |
 | `doctor`           | Check RESTCONF connectivity and device health          |
 | `config`           | Manage device configurations                           |
+| `audit`            | Show recent entries from the local audit log            |
 
 ## Voice Shortcuts
 
@@ -130,6 +131,9 @@ cisco-yang voice interfaces       # Interface configuration (check voice binding
 | `--read-only`                     | Restrict to read-only operations       |
 | `--no-audit`                      | Disable audit logging for this command |
 | `--debug`                         | Enable debug logging                   |
+| `--quiet`                         | Suppress the "Device: ..." banner and other informational stderr messages |
+
+Every command that talks to a device prints `Device: <name> (<host>)` to stderr before connecting, so it's always clear which device answered a query — pass `--quiet` to suppress it for scripting.
 
 ## Library API
 
