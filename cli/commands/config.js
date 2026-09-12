@@ -39,11 +39,41 @@ module.exports = function registerConfigCommand(program) {
 
   config
     .command("use <name>")
-    .description("Set a named device as the active device")
+    .description(
+      "Set a named device as the active device (matches a unique substring of name/host too)",
+    )
     .action((name) => {
       try {
-        configUtil.useDevice(name);
-        process.stdout.write(`Device "${name}" is now the active device.\n`);
+        const { devices } = configUtil.listDevices();
+        if (devices[name]) {
+          configUtil.useDevice(name);
+          process.stdout.write(`Device "${name}" is now the active device.\n`);
+          return;
+        }
+
+        const matches = configUtil.findDevicesByTerm(name);
+        if (matches.length === 0) {
+          throw new Error(`Device "${name}" not found`);
+        }
+        if (matches.length === 1) {
+          configUtil.useDevice(matches[0].name);
+          process.stdout.write(
+            `Device "${matches[0].name}" is now the active device (matched "${name}").\n`,
+          );
+          return;
+        }
+
+        process.stdout.write(`Multiple devices match "${name}":\n`);
+        for (const m of matches.slice(0, 20)) {
+          process.stdout.write(`  ${m.name} (${m.host})\n`);
+        }
+        if (matches.length > 20) {
+          process.stdout.write(`  ...and ${matches.length - 20} more.\n`);
+        }
+        process.stdout.write(
+          `Run "cisco-yang config use <exact-name>" with one of the names above.\n`,
+        );
+        process.exitCode = 1;
       } catch (err) {
         printError(err);
       }
@@ -51,15 +81,68 @@ module.exports = function registerConfigCommand(program) {
 
   config
     .command("list")
-    .description("List all configured devices")
-    .action(async () => {
+    .description("List configured devices (shows the first 10 by default)")
+    .option("--filter <term>", "only show devices matching a name/host substring")
+    .option("--all", "show every device, ignoring the default limit")
+    .option("--limit <n>", "max number of devices to show (default 10)")
+    .action(async (opts) => {
       try {
         const { activeDevice, devices } = configUtil.listDevices();
-        const rows = Object.entries(devices).map(([name, device]) => ({
+        let entries = Object.entries(devices).sort(([a], [b]) =>
+          a.localeCompare(b),
+        );
+        const total = entries.length;
+
+        if (opts.filter) {
+          const lower = opts.filter.toLowerCase();
+          entries = entries.filter(
+            ([name, device]) =>
+              name.toLowerCase().includes(lower) ||
+              (device.host && device.host.toLowerCase().includes(lower)),
+          );
+        }
+        const matched = entries.length;
+
+        const limit = opts.all ? undefined : parseInt(opts.limit, 10) || 10;
+        const truncated = limit !== undefined && matched > limit;
+        if (limit !== undefined) {
+          entries = entries.slice(0, limit);
+        }
+
+        const rows = entries.map(([name, device]) => ({
           name,
           active: name === activeDevice ? "\u2713" : "",
           host: device.host,
           username: device.username,
+        }));
+        const format = program.opts().format;
+        await printResult(rows, format);
+
+        if (truncated) {
+          const suffix = opts.filter ? ` matching "${opts.filter}"` : "";
+          process.stderr.write(
+            `\nShowing ${entries.length} of ${matched}${suffix} device(s)` +
+              (opts.filter ? "" : ` (${total} total)`) +
+              `. Use --all to show everyone, --limit <n> to change, or --filter <term> to narrow down.\n`,
+          );
+        }
+      } catch (err) {
+        printError(err);
+      }
+    });
+
+  config
+    .command("find <term>")
+    .description("Search configured devices by name or host substring")
+    .action(async (term) => {
+      try {
+        const { activeDevice } = configUtil.listDevices();
+        const matches = configUtil.findDevicesByTerm(term);
+        const rows = matches.map((d) => ({
+          name: d.name,
+          active: d.name === activeDevice ? "\u2713" : "",
+          host: d.host,
+          username: d.username,
         }));
         const format = program.opts().format;
         await printResult(rows, format);

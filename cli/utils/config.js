@@ -101,6 +101,18 @@ function listDevices() {
   return loadConfig();
 }
 
+function findDevicesByTerm(term) {
+  const config = loadConfig();
+  const lower = term.toLowerCase();
+  return Object.entries(config.devices)
+    .filter(
+      ([name, device]) =>
+        name.toLowerCase().includes(lower) ||
+        (device.host && device.host.toLowerCase().includes(lower)),
+    )
+    .map(([name, device]) => ({ name, ...device }));
+}
+
 function maskPassword(password) {
   if (!password) return password;
   if (SS_PLACEHOLDER_RE.test(password)) return password;
@@ -200,6 +212,7 @@ module.exports = {
   removeDevice,
   getActiveDevice,
   listDevices,
+  findDevicesByTerm,
   maskPassword,
   getConfigDir,
   getConfigPath,

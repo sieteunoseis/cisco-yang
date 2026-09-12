@@ -79,8 +79,11 @@ cisco-yang operations
 
 ```bash
 cisco-yang config add <name> --host <host> --username <user> --password <pass> [--insecure]
-cisco-yang config use <name>       # switch active device
-cisco-yang config list             # list all devices
+cisco-yang config use <name>       # switch active device (matches a unique name/host substring too)
+cisco-yang config list             # list devices, first 10 by default
+cisco-yang config list --all       # list every configured device
+cisco-yang config list --filter <term>   # narrow the list by name/host substring
+cisco-yang config find <term>      # search devices by name/host substring
 cisco-yang config show             # show active device (masks passwords)
 cisco-yang config remove <name>    # remove a device
 cisco-yang config test             # test RESTCONF connectivity
