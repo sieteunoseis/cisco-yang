@@ -95,10 +95,17 @@ module.exports = function registerDoctorCommand(program) {
         }
 
         try {
-          await service.exec("show version | include Version");
-          ok("Exec RPC: available (Cisco-IOS-XE-rpc:exec)");
+          const operations = await service.getOperations();
+          const execOp = Object.keys(operations || {}).find((name) =>
+            name.endsWith(":exec"),
+          );
+          if (execOp) {
+            ok(`Exec RPC: available (${execOp})`);
+          } else {
+            warn("Exec RPC: not exposed by this device's YANG capabilities");
+          }
         } catch {
-          warn("Exec RPC: not available — requires IOS-XE 16.5+");
+          warn("Could not check for an exec RPC");
         }
       } catch (err) {
         const msg = err.message || String(err);

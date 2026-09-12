@@ -18,10 +18,10 @@ module.exports = function registerOperationsCommand(program) {
         const service = await createService(globalOpts);
         const ops = await service.getOperations();
 
-        let rows = Object.entries(ops).map(([name, path]) => ({
-          operation: name,
-          path,
-        }));
+        // `path` is always /restconf/operations/<operation> — showing both
+        // columns just doubles the width with no new information and makes
+        // the table wrap illegibly, so only the operation name is listed.
+        let rows = Object.keys(ops).map((name) => ({ operation: name }));
 
         if (cmdOpts.filter) {
           const lowerFilter = cmdOpts.filter.toLowerCase();

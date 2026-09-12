@@ -32,8 +32,12 @@ assert(help.includes("config"), "should list config command");
 console.log("  PASS");
 
 console.log("Test: --version shows version");
+const pkg = require("../package.json");
 const version = run(["--version"]);
-assert(version.trim() === "1.0.0", `expected 1.0.0, got ${version.trim()}`);
+assert(
+  version.trim() === pkg.version,
+  `expected ${pkg.version}, got ${version.trim()}`,
+);
 console.log("  PASS");
 
 console.log("Test: config list with empty config");
