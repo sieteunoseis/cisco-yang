@@ -1,6 +1,6 @@
 {
   "name": "cisco-yang",
-  "version": "1.4.0",
+  "version": "1.4.1",
   "description": "CLI and SDK for IOS-XE devices via RESTCONF",
   "repository": {
     "type": "git",

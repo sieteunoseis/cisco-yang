@@ -148,8 +148,13 @@ function formatArrayTable(rows) {
 }
 
 function formatTable(data) {
+  // No data — e.g. a RESTCONF resource that exists but is currently empty
+  if (data === null || data === undefined) {
+    return "No data";
+  }
+
   // Plain primitive (string, number, boolean) — just display it
-  if (data !== null && data !== undefined && typeof data !== "object") {
+  if (typeof data !== "object") {
     return String(data);
   }
 
