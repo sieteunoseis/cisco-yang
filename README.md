@@ -104,6 +104,7 @@ Config stored at `~/.cisco-yang/config.json`. Supports [ss-cli](https://github.c
 | `models`           | List YANG models available on the device               |
 | `operations`       | List available RESTCONF RPC operations                 |
 | `describe <model>` | Show the structure of a YANG model                     |
+| `which <name>`     | Check whether a name is a data path or an RPC, and how to invoke it |
 | `voice <shortcut>` | Voice troubleshooting shortcuts                        |
 | `doctor`           | Check RESTCONF connectivity and device health          |
 | `config`           | Manage device configurations                           |

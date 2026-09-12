@@ -45,6 +45,7 @@ require("./commands/exec.js")(program); // registers 'rpc' command
 require("./commands/models.js")(program);
 require("./commands/operations.js")(program);
 require("./commands/describe.js")(program);
+require("./commands/which.js")(program);
 require("./commands/voice.js")(program);
 require("./commands/doctor.js")(program);
 
