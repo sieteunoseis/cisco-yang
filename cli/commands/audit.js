@@ -48,16 +48,29 @@ module.exports = function registerAuditCommand(program) {
         const count = parseInt(cmdOpts.count, 10) || 20;
         entries = entries.slice(-count).reverse();
 
-        if (format !== "json" && format !== "csv") {
-          // Errors can be long, multi-line ss-cli/RESTCONF messages —
-          // collapse and truncate for a readable table (full text is
-          // still available via --format json/csv).
+        if (format !== "json") {
+          // Different commands log different context fields (path,
+          // rpcName, model, filter, name) — as separate columns most are
+          // empty for any given row, so fold them into one "target"
+          // column. Also collapse/truncate errors, which can be long,
+          // multi-line ss-cli/RESTCONF messages. Full raw entries are
+          // still available via --format json.
           entries = entries.map((e) => {
-            if (typeof e.error !== "string") return e;
-            const oneLine = e.error.replace(/\s*\n\s*/g, " ").trim();
-            const short =
-              oneLine.length > 100 ? oneLine.slice(0, 97) + "..." : oneLine;
-            return { ...e, error: short };
+            const target = e.path ?? e.rpcName ?? e.model ?? e.name ?? e.filter ?? "";
+            let error = e.error;
+            if (typeof error === "string") {
+              const oneLine = error.replace(/\s*\n\s*/g, " ").trim();
+              error = oneLine.length > 100 ? oneLine.slice(0, 97) + "..." : oneLine;
+            }
+            return {
+              timestamp: e.timestamp,
+              device: e.device,
+              operation: e.operation,
+              target,
+              duration_ms: e.duration_ms,
+              status: e.status,
+              error,
+            };
           });
         }
 

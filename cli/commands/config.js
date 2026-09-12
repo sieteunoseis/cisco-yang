@@ -103,18 +103,22 @@ module.exports = function registerConfigCommand(program) {
         }
         const matched = entries.length;
 
+        // Pin the active device to the top, ahead of alphabetical order,
+        // so it's always the first thing you see.
+        const activeIndex = entries.findIndex(
+          ([name]) => name === activeDevice,
+        );
+        const activeEntry =
+          activeIndex !== -1 ? entries.splice(activeIndex, 1)[0] : null;
+
         const limit = opts.all ? undefined : parseInt(opts.limit, 10) || 10;
         const truncated = limit !== undefined && matched > limit;
-        let activeAppended = false;
         if (limit !== undefined) {
-          const page = entries.slice(0, limit);
-          const activeEntry =
-            activeDevice && entries.find(([name]) => name === activeDevice);
-          if (activeEntry && !page.includes(activeEntry)) {
-            page.push(activeEntry);
-            activeAppended = true;
-          }
-          entries = page;
+          const restLimit = activeEntry ? limit - 1 : limit;
+          entries = entries.slice(0, Math.max(restLimit, 0));
+        }
+        if (activeEntry) {
+          entries = [activeEntry, ...entries];
         }
 
         const rows = entries.map(([name, device]) => ({
@@ -133,11 +137,6 @@ module.exports = function registerConfigCommand(program) {
               (opts.filter ? "" : ` (${total} total)`) +
               `. Use --all to show everyone, --limit <n> to change, or --filter <term> to narrow down.\n`,
           );
-          if (activeAppended) {
-            process.stderr.write(
-              `(active device "${activeDevice}" appended below the limit so it's always visible)\n`,
-            );
-          }
         }
       } catch (err) {
         printError(err);
